@@ -5,7 +5,7 @@ import re
 import sys
 
 from argparse import ArgumentParser
-from ConfigParser import SafeConfigParser as ConfigParser
+from configparser import SafeConfigParser as ConfigParser
 
 def read_property_file(f, defaults=None):
     config = ConfigParser(defaults)
@@ -98,9 +98,9 @@ class Checkpoint(object):
 # Create an enumerated type
 def enum(name, **enums):
     _enums = enums.copy()
-    _enums["__names__"] = list(n for n in enums.keys())
-    _enums["__values__"] = list(v for v in enums.values())
-    _enums["__reverse_dict__"] = dict((value, key) for key,value in enums.iteritems())
+    _enums["__names__"] = list(n for n in list(enums.keys()))
+    _enums["__values__"] = list(v for v in list(enums.values()))
+    _enums["__reverse_dict__"] = dict((value, key) for key,value in enums.items())
     return type(name, (), _enums)
     
 class JSONWriter(object):

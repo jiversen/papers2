@@ -49,7 +49,7 @@ class Extract(object):
                 value = default
         
         if value is not None:
-            if isinstance(value, str) or isinstance(value, unicode):
+            if isinstance(value, str) or isinstance(value, str):
                 value = self.format(value)
 
             else:
@@ -72,12 +72,12 @@ class Extract(object):
         return value
     
     def format_tuple(self, values, nvals):
-        values = filter(None, values)
+        values = [_f for _f in values if _f]
         nvals = min(nvals, len(values))
         if nvals > 0:
             if len(values) < nvals:
                 values = values[0:nvals]
-            return map(self.format, values)
+            return list(map(self.format, values))
     
     def format(self, value):
         return value
@@ -134,22 +134,22 @@ class ExtractCreators(Extract):
     
     def format(self, author):
         if author.type == 0:
-            creator_type = u'author'
+            creator_type = 'author'
         elif author.type == 1:
-            creator_type = u'editor'
+            creator_type = 'editor'
         else:
             raise Exception("Unsupported author type {0}".format(author.type))
         
         if author.institutional > 0:
             return { 
-                u'creatorType': creator_type,
-                u'name': author.surname
+                'creatorType': creator_type,
+                'name': author.surname
             }
         else:
             return { 
-                u'creatorType': creator_type,
-                u'firstName': author.prename,
-                u'lastName': author.surname
+                'creatorType': creator_type,
+                'firstName': author.prename,
+                'lastName': author.surname
             }
 
 class ExtractIdentifier(Extract):
@@ -303,7 +303,7 @@ class ZoteroImporter(object):
         item = self.client.item_template(item_type)
 
         # fill in template fields
-        for key, value in item.iteritems():
+        for key, value in item.items():
             if key in EXTRACTORS:
                 value = EXTRACTORS[key].extract(pub, self, value)
                 if value is not None:
@@ -353,7 +353,7 @@ class ZoteroImporter(object):
                     status = self.client.create_items(self._batch.items)
                     
                     if len(status['failed']) > 0:
-                        for status_idx, status_msg in status['failed'].iteritems():
+                        for status_idx, status_msg in status['failed'].items():
                             item_idx = int(status_idx)
                             # remove failures from the checkpoint
                             if self.checkpoint is not None:
@@ -366,7 +366,7 @@ class ZoteroImporter(object):
                     successes.update(status['success'])
                     successes.update(status['unchanged'])
                     
-                    for k, objKey in successes.iteritems():
+                    for k, objKey in successes.items():
                         item_idx = int(k)
                         
                         # add notes
@@ -382,7 +382,7 @@ class ZoteroImporter(object):
                             note_status = self.client.create_items(note_batch)
                             
                             if len(note_status['failed']) > 0:
-                                for status_idx, status_msg in note_status['failed'].iteritems():
+                                for status_idx, status_msg in note_status['failed'].items():
                                     note_idx = int(status_idx)
                                     # just warn about these failures
                                     note = note_batch[note_idx]

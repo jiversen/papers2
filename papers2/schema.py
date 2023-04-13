@@ -102,7 +102,7 @@ class Papers2(object):
             types = list(t.id for t in types)
             criteria.append(Publication.subtype.in_(types))
         else:
-            criteria.append(Publication.subtype.in_(pub_type_id_to_pub_type.keys()))
+            criteria.append(Publication.subtype.in_(list(pub_type_id_to_pub_type.keys())))
         
         if not include_deleted:
             criteria.append(Publication.marked_deleted == False)

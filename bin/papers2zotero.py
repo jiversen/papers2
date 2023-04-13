@@ -41,11 +41,11 @@ def add_arguments(parser):
     parser.add_argument("--no-collections", action="store_true", default=False,
         help="Do not convert Papers2 collections into Zotero collections")
     parser.add_argument("--log-level", metavar="LEVEL", default="WARNING",
-        choices=log._levelNames.keys(), help="Logger level")
+        choices=list(log._levelNames.keys()), help="Logger level")
     parser.add_argument("--sql-log-level", metavar="LEVEL", default="WARNING",
-        choices=log._levelNames.keys(), help="Logger level for SQL statements")
+        choices=list(log._levelNames.keys()), help="Logger level for SQL statements")
     parser.add_argument("--http-log-level", metavar="LEVEL", default="WARNING",
-        choices=log._levelNames.keys(), help="Logger level for HTTP requests")
+        choices=list(log._levelNames.keys()), help="Logger level for HTTP requests")
 
 def main():
     args = parse_with_config(add_arguments, ('Papers2', 'Zotero'))
@@ -87,7 +87,7 @@ def main():
     max_pubs = args.max_pubs
     row_ids = None
     if args.rowids is not None:
-        query_args['row_ids'] = map(int, args.rowids.split(","))
+        query_args['row_ids'] = list(map(int, args.rowids.split(",")))
         num_ids = len(query_args['row_ids'])
         if max_pubs is None or max_pubs > num_ids:
             max_pubs = num_ids
@@ -103,7 +103,7 @@ def main():
     for pub in q:
         try:
             if z.add_pub(pub):
-                log.debug(u"Added to batch: {0}".format(pub.title))
+                log.debug("Added to batch: {0}".format(pub.title))
                 num_added += 1
             
             if max_pubs is not None and num_added >= max_pubs:

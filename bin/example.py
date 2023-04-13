@@ -12,7 +12,7 @@ License: GPL
 
 import re, os, time, sys, glob, itertools, sqlite3
 from optparse import OptionParser
-from ConfigParser import ConfigParser, NoOptionError
+from configparser import ConfigParser, NoOptionError
 
 ## You can overide these values in ~/.papersc
 DEFAULTS = {
@@ -351,7 +351,7 @@ class BibtexGenerator(object):
     
     def generate_bibtex(self, fhandle):
         """Dumps the generated bibtex file into fhandle"""
-        citations = self.app.query_papers_by_citekey(self.citekeys.keys())
+        citations = self.app.query_papers_by_citekey(list(self.citekeys.keys()))
         for citation in citations:
             fhandle.write(self.as_bibtex(citations[citation]))
             fhandle.write("\n")
@@ -385,7 +385,7 @@ def do_bibtex(app):
     
     if options.verbose:
         report.write("=== Citekeys Used ===\n")
-        for citation, count in bibtex.citekeys.iteritems():
+        for citation, count in bibtex.citekeys.items():
             report.write("%s : %d\n" % (citation, count))
     
     parser.cleanup()
