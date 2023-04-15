@@ -9,6 +9,7 @@
 from datetime import datetime
 import logging as log
 import sys
+import os
 
 from pyzotero.zotero import Zotero
 from .schema import PubType, IDSource, KeywordType, Label
@@ -345,9 +346,9 @@ class ZoteroImporter(object):
         if self._batch.is_full or (force and not self._batch.is_empty):
             try:
                 if self.dryrun is not None:
-                    for item, attachments in self._batch.iter():
-                        self.dryrun.write(item, attachments)
-                
+                    for item, notes, attachments in self._batch.iter():
+                        self.dryrun.write(item, notes, attachments)
+
                 else:
                     # upload metadata
                     status = self.client.create_items(self._batch.items)
@@ -397,7 +398,34 @@ class ZoteroImporter(object):
                             attachments = list(path for path, mime in self._batch.attachments[item_idx])
                             if len(attachments) > 0:
                                 try:
-                                    self.client.attachment_simple(attachments, objKey)
+                                    #self.client.attachment_simple(attachments, objKey)
+                                    for path, mime in self._batch.attachments[item_idx]:
+                                        rp = os.path.relpath(path, self.papers2.folder).split('/')
+                                        p2folder = rp[0]
+                                        p2initial = rp[1]
+                                        p2author = rp[2]
+                                        filename = rp[-1]
+                                        #zfolder = # TODO
+
+                                        a = self.client.item_template('attachment','linked_file')
+                                        a['parent'] = objKey
+                                        a['path'] = path
+                                        a['contentType'] = mime
+                                        a['title'] = filename
+                                        a['accessDate'] = os.path.getatime(path) # TODO: use record imported time instead
+                                        #a['citationKey'] = ? # TODO: how handled in zotero?
+                                        # How indicate if is a supplementary file?
+
+
+
+                                    # JRI: TODO: create link items, with mime type, ideally change parent folder according to parent item type in order to match zotfile
+                                    #   may just do this with LINKS for now? get top-level directory for papers (based on type?) then convert that to zotero type
+                                    #   from ITEM_TYPES translation table. Where does papers translate its code to a name?
+                                    # itemptype = 'attachment', linkmode = 'linked_file', path = path, contentType = 'application/pdf' (or mime)
+                                    #  title
+                                    # accessDate
+                                    #  note, tags, collection (wouldn't these be properties of the parent?)
+                                    #
 
                                 # This is to work around a bug in pyzotero where an exception is
                                 # thrown if an attachment already exists

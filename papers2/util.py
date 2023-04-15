@@ -111,6 +111,15 @@ class JSONWriter(object):
         if self._fh != sys.stdout:
             self._fh.close()
     
-    def write(self, item, attachments):
+    def write(self, item, notes, attachments):
+        self._fh.write("ITEM:\n")
         self._fh.write(json.dumps(item, indent=4, separators=(',', ': ')))
+        self._fh.write("\n")
+
+        self._fh.write("NOTES:\n")
+        self._fh.write(json.dumps(notes, indent=4, separators=(',', ': ')))
+        self._fh.write("\n")
+
+        self._fh.write("ATTACHMENTS:\n")
+        self._fh.write(json.dumps(attachments, indent=4, separators=(',', ': ')))
         self._fh.write("\n")

@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 # Export publications from a Papers2 database to
 # a Zotero account.
+
+# bin/papers2zotero.py -a `cat zapi` -f "`cat pdir`" -i `cat zuid` -r 354 --dryrun --log-level DEBUG
+# bin/papers2zotero.py --config p2z.config -r 354 --dryrun
+
+
 from argparse import ArgumentParser
 import logging as log
 import sys
@@ -41,18 +46,18 @@ def add_arguments(parser):
     parser.add_argument("--no-collections", action="store_true", default=False,
         help="Do not convert Papers2 collections into Zotero collections")
     parser.add_argument("--log-level", metavar="LEVEL", default="WARNING",
-        choices=list(log._levelNames.keys()), help="Logger level")
+        choices=list(log._nameToLevel.keys()), help="Logger level")
     parser.add_argument("--sql-log-level", metavar="LEVEL", default="WARNING",
-        choices=list(log._levelNames.keys()), help="Logger level for SQL statements")
+        choices=list(log._nameToLevel.keys()), help="Logger level for SQL statements")
     parser.add_argument("--http-log-level", metavar="LEVEL", default="WARNING",
-        choices=list(log._levelNames.keys()), help="Logger level for HTTP requests")
+        choices=list(log._nameToLevel.keys()), help="Logger level for HTTP requests")
 
 def main():
     args = parse_with_config(add_arguments, ('Papers2', 'Zotero'))
 
-    log.basicConfig(level=log._levelNames[args.log_level])
-    log.getLogger('sqlalchemy.engine').setLevel(log._levelNames[args.sql_log_level])
-    log.getLogger('requests').setLevel(log._levelNames[args.http_log_level])
+    log.basicConfig(level=log._nameToLevel[args.log_level])
+    log.getLogger('sqlalchemy.engine').setLevel(log._nameToLevel[args.sql_log_level])
+    log.getLogger('requests').setLevel(log._nameToLevel[args.http_log_level])
 
     # create checkpoint for tracking uploaded items
     checkpoint = None
@@ -118,5 +123,6 @@ def main():
     log.info("Exported {0} papers to Zotero".format(num_added))
 
 if __name__ == "__main__":
+    #import pdb; pdb.set_trace()
     main()
 
