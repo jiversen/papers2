@@ -1,7 +1,7 @@
 pdir
 zapi
 zuid
-.idea
+#.idea
 papers2.egg-info
 __pycache__
 p2z.config
