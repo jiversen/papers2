@@ -2,10 +2,12 @@
 
 This library provides a high-level interface to the Papers2 database, along with scripts to export your library to various formats.
 
+As of April 2023, updated to python3 and extended to enable creating linked, instead of uploaded, attachments.
+
 # Installation
 
 ```python
-pip install git+git://github.com/jdidion/papers2.git
+pip install git+https://github.com/jiversen/papers2.git
 ```
 
 This will install the dependencies:
