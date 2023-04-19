@@ -1,8 +1,13 @@
-pdir
-zapi
-zuid
-#.idea
+config.txt
+*.pyc
+papers2.egg-info/
+build/
+dist/
+library.json
+papers2zotero.pickle
 papers2.egg-info
 __pycache__
 p2z.config
 *.bak
+p2z/*
+src

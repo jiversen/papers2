@@ -21,18 +21,34 @@ ITEM_TYPES = {
     PubType.BOOK                : 'book',
     PubType.THESIS              : 'thesis',
     PubType.E_BOOK              : 'book',
-    #PubType.BOOK_SECTION       : 'bookSection',
+    PubType.BOOK_SECTION        : 'bookSection',
     PubType.WEBSITE             : 'webpage',
     PubType.SOFTWARE            : 'computerProgram',
     PubType.JOURNAL_ARTICLE     : 'journalArticle',
     PubType.NEWSPAPER_ARTICLE   : 'newspaperArticle',
     PubType.WEBSITE_ARTICLE     : 'webpage',
-    PubType.PREPRINT            : 'journalArticle',
+    PubType.PREPRINT            : 'preprint',
     PubType.CONFERENCE_PAPER    : 'conferencePaper',
     PubType.REPORT              : 'report',
     PubType.PROTOCOL            : 'report'
 }
 
+# mapping of papers2 folder names to zotero folder names
+#   these are the folders I have; I do not have all the types listed above
+#   hack, but need to create symlinks in our Papers2 directory--that seems to work well with google drive streaming
+#   and avoids having to upload all pdfs again
+#   If we rerun zotfile on a linked file, will it rename it? Yes. This'll get messy when it comes to book chapters
+#
+FOLDER_MAP = {
+    'Articles'      : 'Journal Article',
+    'Books'         : 'Book',
+    'Manuscripts'   : 'Document',
+    'Media'         : '',
+    'Patents'       : '',
+    'PDFs'          : 'Document',
+    'Reports'       : ''
+
+}
 class Extract(object):
     def __init__(self, fn=None, num_values=1):
         self.fn = fn
@@ -310,6 +326,20 @@ class ZoteroImporter(object):
                 if value is not None:
                     item[key] = value
 
+        # add rating to 'Extras' field
+        item['extra'] = '*' * pub.rating
+
+        # set the 'accessDate' to the papers imported date. convert from unix time to ISO 8601
+        item['accessDate'] = datetime.utcfromtimestamp(pub.imported_date).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+        # add tags based on Collection membership
+        collections = self.papers2.get_collections(pub).all()
+        tags = list(f'C:{c.name}' for c in collections) #fails properly if no collections
+
+        # add tag if we ever cited it
+        if pub.citekey is not None:
+            tags.append('&cited')
+
         # add notes, if any
         notes = []
         if pub.notes is not None and len(pub.notes) > 0:
@@ -323,10 +353,10 @@ class ZoteroImporter(object):
         attachments = []
         if self.upload_attachments == "all" or (
                 self.upload_attachments == "unread" and pub.times_read == 0):
-            attachments = list(self.papers2.get_attachments(pub))
+            attachments = list(self.papers2.get_attachments(pub)) #each is a duple (filename, mime)
         
         # add to batch and checkpoint
-        self._batch.add(item, notes, attachments)
+        self._batch.add(item, notes, attachments, tags)
         if self.checkpoint is not None:
             self.checkpoint.add(pub.ROWID)
         
@@ -369,7 +399,21 @@ class ZoteroImporter(object):
                     
                     for k, objKey in successes.items():
                         item_idx = int(k)
-                        
+
+                        # add tags
+                        tags = self._batch.tags[item_idx]
+                        if len(tags) > 0:
+                            item = self.client.item(objKey)
+                            tag_status = self.client.add_tags(item,*tags)
+
+                            if len(tag_status['failed']) > 0:
+                                for status_idx, status_msg in tag_status['failed'].items():
+                                    log.error("Failed to add tags {0} for item {1}; code {2}; {3}".format(
+                                        tags, self._batch.items[status_idx]['title'],
+                                        status_msg['code'], status_msg['message'])
+                                    )
+
+
                         # add notes
                         notes = self._batch.notes[item_idx]
                         if len(notes) > 0:
@@ -388,10 +432,11 @@ class ZoteroImporter(object):
                                     # just warn about these failures
                                     note = note_batch[note_idx]
                                     log.error("Failed to create note {0} for item item {1}; code {2}; {3}".format(
-                                       note['note'], self.batch.items[idx]['title'], 
+                                       note['note'], self._batch.items[status_idx]['title'],
                                        status_msg['code'], status_msg['message']))
                     
                         # upload attachments and add items to collections
+                        # changed this to link instead--TODO: would be better to create an option to either upload or link
                         if self.upload_attachments != "none":
                         
                             # TODO: modify pyzotero to pass MIME type for contentType key
@@ -405,16 +450,17 @@ class ZoteroImporter(object):
                                         p2initial = rp[1]
                                         p2author = rp[2]
                                         filename = rp[-1]
-                                        #zfolder = # TODO
+                                        #zfolder = # TODO need dict to convert from papers type to zotero type
 
-                                        a = self.client.item_template('attachment','linked_file')
+                                        #reconstitute the path
+
+                                        a = self.client.item_template('attachment', 'linked_file')
                                         a['parent'] = objKey
                                         a['path'] = path
                                         a['contentType'] = mime
                                         a['title'] = filename
-                                        a['accessDate'] = os.path.getatime(path) # TODO: use record imported time instead
-                                        #a['citationKey'] = ? # TODO: how handled in zotero?
-                                        # How indicate if is a supplementary file?
+                                        a['accessDate'] = datetime.utcfromtimestamp(os.path.getatime(path)).strftime('%Y-%m-%dT%H:%M:%SZ')
+                                        # How indicate if is a supplementary file? should be evident from name
 
 
 

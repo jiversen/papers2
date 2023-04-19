@@ -17,7 +17,7 @@ from .util import enum
 PubAttrs = namedtuple("PubAttrs", ("name", "id"))
 PubType = enum('PubType',
     BOOK=               PubAttrs("Book",                0),
-    #BOOK_SECTION=      PubAttrs("BookSection",         ??),
+    BOOK_SECTION=       PubAttrs("BookSection",         -1000), #JRI by inspection
     THESIS=             PubAttrs("Thesis",              10),
     E_BOOK=             PubAttrs("eBook",               20),
     WEBSITE=            PubAttrs("Website",             300),
@@ -88,12 +88,18 @@ class Papers2(object):
     
     # Get all publications matching specified criteria.
     def get_publications(self, row_ids=None, types=None, 
-            include_deleted=False, include_duplicates=False, include_manuscripts=False):
+            include_deleted=False, include_duplicates=True, include_manuscripts=False):
         Publication = self.get_table("Publication")
-        criteria = [
-            Publication.citekey != None,
-            Publication.imported_date != None
-        ]
+        #criteria = [   #this would exclude anything that hasn't been cited...useful to record, perhaps--we'll add a tag?
+        #    Publication.citekey != None,
+        #    Publication.imported_date != None
+        #]
+
+        #TODO Ideas here: put rating into zotero Extras so can sort by in list
+        # put original date added to papers into zotero.accessedDate
+        # tags are in pub.tag_string
+        # how about summary? user_label?
+        # if has citekey include tag: selfCited
         
         if row_ids is not None:
             criteria.append(Publication.ROWID.in_(row_ids))
@@ -124,6 +130,7 @@ class Papers2(object):
             ).filter(Publication.ROWID == pub_id
             ).one()
     
+    # ooh, this is how chapters are linked to books
     def get_bundle(self, pub):
         try:
             bundle_id = int(pub.bundle)
@@ -134,7 +141,7 @@ class Papers2(object):
             self._cache['bundle'][pub.bundle] = bundle
         return self._cache['bundle'][pub.bundle]
         
-    # Get the PubType for a publication
+    # Get the PubType name for a publication code ?: Why use subtype and not type:
     def get_pub_type(self, pub):
         return pub_type_id_to_pub_type[pub.subtype]
     

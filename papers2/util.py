@@ -37,6 +37,7 @@ class Batch(object):
         self.items = []
         self.notes = []
         self.attachments = []
+        self.tags = []
         self.max_size = max_size
     
     @property
@@ -51,19 +52,21 @@ class Batch(object):
     def is_empty(self):
         return len(self.items) == 0
     
-    def add(self, item, notes, attachments):
+    def add(self, item, notes, attachments, tags):
         self.items.append(item)
         self.notes.append(notes)
         self.attachments.append(attachments)
+        self.tags.append(tags)
     
     def iter(self):
-        for item in zip(self.items, self.notes, self.attachments):
+        for item in zip(self.items, self.notes, self.attachments, self.tags):
             yield item
     
     def clear(self):
         self.items = []
         self.notes = []
         self.attachments = []
+        self.tags = []
 
 # Simple checkpointing facility that maintains a
 # set of items IDs and pickles them on commit.
