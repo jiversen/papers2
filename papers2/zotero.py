@@ -33,21 +33,23 @@ ITEM_TYPES = {
     PubType.PROTOCOL            : 'report'
 }
 
-# mapping of papers2 folder names to zotero folder names
-#   these are the folders I have; I do not have all the types listed above
-#   hack, but need to create symlinks in our Papers2 directory--that seems to work well with google drive streaming
-#   and avoids having to upload all pdfs again
-#   If we rerun zotfile on a linked file, will it rename it? Yes. This'll get messy when it comes to book chapters
-#
+# mapping of papers2 publication types to zotero Folder types
+#   to use when moving an attachment over from Papers2 directory to Zotero
+#   linked-files directory (as managed by ZOTFILE, configured to use %T type as top level folders)
 FOLDER_MAP = {
-    'Articles'      : 'Journal Article',
-    'Books'         : 'Book',
-    'Manuscripts'   : 'Document',
-    'Media'         : '',
-    'Patents'       : '',
-    'PDFs'          : 'Document',
-    'Reports'       : ''
-
+    PubType.BOOK: 'Book',
+    PubType.THESIS: 'Thesis',
+    PubType.E_BOOK: 'Book',
+    PubType.BOOK_SECTION: 'Book Section',
+    PubType.WEBSITE: 'Web Page',
+    PubType.SOFTWARE: 'Software',
+    PubType.JOURNAL_ARTICLE: 'Journal Article',
+    PubType.NEWSPAPER_ARTICLE: 'Newspaper Article',
+    PubType.WEBSITE_ARTICLE: 'Webpage',
+    PubType.PREPRINT: 'Preprint',
+    PubType.CONFERENCE_PAPER: 'Conference Paper',
+    PubType.REPORT: 'Report',
+    PubType.PROTOCOL: 'Report'
 }
 class Extract(object):
     def __init__(self, fn=None, num_values=1):
@@ -307,6 +309,7 @@ class ZoteroImporter(object):
                     if data['name'] in add_to_collections:
                         self.collections[data['name']] = data['key']
     
+    # add papers pub to zotero batch
     def add_pub(self, pub):
         # ignore publications we've already imported
         if self.checkpoint is not None and self.checkpoint.contains(pub.ROWID):
@@ -315,6 +318,9 @@ class ZoteroImporter(object):
         
         # convert the Papers2 publication type to a Zotero item type
         item_type = ITEM_TYPES[self.papers2.get_pub_type(pub)]
+
+        # convert the Papers2 publication type to a Zotero item type directory name
+        item_z_dir = FOLDER_MAP[self.papers2.get_pub_type(pub)]
         
         # get the template to fill in for an item of this type
         item = self.client.item_template(item_type)
@@ -327,18 +333,25 @@ class ZoteroImporter(object):
                     item[key] = value
 
         # add rating to 'Extras' field
-        item['extra'] = '*' * pub.rating
+        # NOPE: Extras is already used for pmid; instead add a tag
+        #item['extra'] = '*' * pub.rating
 
         # set the 'accessDate' to the papers imported date. convert from unix time to ISO 8601
-        item['accessDate'] = datetime.utcfromtimestamp(pub.imported_date).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # not needed--there is an ExtractTimestamp above that maps imported date directly!
+        #item['accessDate'] = datetime.utcfromtimestamp(pub.imported_date).strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        # add tags based on Collection membership
+        # append tags based on Collection membership
         collections = self.papers2.get_collections(pub).all()
         tags = list(f'C:{c.name}' for c in collections) #fails properly if no collections
 
         # add tag if we ever cited it
         if pub.citekey is not None:
             tags.append('&cited')
+
+        # add a tag with rating
+        if pub.rating > 0:
+            tags.append('*' * pub.rating)
+
 
         # add notes, if any
         notes = []
@@ -348,13 +361,15 @@ class ZoteroImporter(object):
         reviews = self.papers2.get_reviews(pub)
         for r in reviews:
             notes.append("{0} Rating: {1}".format(r.content, r.rating))
-        
+
+
         # get paths to attachments
         attachments = []
         if self.upload_attachments == "all" or (
                 self.upload_attachments == "unread" and pub.times_read == 0):
-            attachments = list(self.papers2.get_attachments(pub)) #each is a duple (filename, mime)
+            attachments = list(self.papers2.get_attachments(pub)) #each is a tuple (filename, mime, papersItem)
         
+
         # add to batch and checkpoint
         self._batch.add(item, notes, attachments, tags)
         if self.checkpoint is not None:
@@ -440,19 +455,24 @@ class ZoteroImporter(object):
                         if self.upload_attachments != "none":
                         
                             # TODO: modify pyzotero to pass MIME type for contentType key
-                            attachments = list(path for path, mime in self._batch.attachments[item_idx])
+                            attachments = list(path for path, mime, type in self._batch.attachments[item_idx])
                             if len(attachments) > 0:
                                 try:
                                     #self.client.attachment_simple(attachments, objKey)
-                                    for path, mime in self._batch.attachments[item_idx]:
-                                        rp = os.path.relpath(path, self.papers2.folder).split('/')
+                                    for p2path, mime, ptype in self._batch.attachments[item_idx]:
+
+                                        #dissect path of original, reconstitute for zotero
+                                        p2relpath = os.path.relpath(p2path, self.papers2.folder)
+                                        rp = relpath.split('/')
                                         p2folder = rp[0]
                                         p2initial = rp[1]
                                         p2author = rp[2]
                                         filename = rp[-1]
-                                        #zfolder = # TODO need dict to convert from papers type to zotero type
+                                        zfolder =  FOLDER_MAP[ptype]
+                                        zrelpath = os.path.join(zfolder,*rp[1:])
+                                        #hmm, do we know zotero's attachment path?
 
-                                        #reconstitute the path
+
 
                                         a = self.client.item_template('attachment', 'linked_file')
                                         a['parent'] = objKey

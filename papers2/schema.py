@@ -94,6 +94,7 @@ class Papers2(object):
         #    Publication.citekey != None,
         #    Publication.imported_date != None
         #]
+        criteria = []
 
         #TODO Ideas here: put rating into zotero Extras so can sort by in list
         # put original date added to papers into zotero.accessedDate
@@ -141,9 +142,10 @@ class Papers2(object):
             self._cache['bundle'][pub.bundle] = bundle
         return self._cache['bundle'][pub.bundle]
         
-    # Get the PubType name for a publication code ?: Why use subtype and not type:
+    # Get the PubType name for a publication code
+    #  previously, incorrectly used subtype, but that has variants not found in the mapping dict!
     def get_pub_type(self, pub):
-        return pub_type_id_to_pub_type[pub.subtype]
+        return pub_type_id_to_pub_type[pub.type]
     
     def get_label_name(self, pub):
         return label_num_to_label[pub.label].name
@@ -189,8 +191,8 @@ class Papers2(object):
         attachments = self.get_session().query(PDF
             ).filter(PDF.object_id == pub.ROWID
             ).order_by(PDF.is_primary.desc())
-        # resolve relative path names
-        return ((os.path.join(self.folder, a.path), a.mime_type) for a in attachments)
+        # resolve relative path names, but also retain item type to be able to properly translate to base folder
+        return ((os.path.join(self.folder, a.path), a.mime_type, self.get_pub_type(pub)) for a in attachments)
     
     def get_keywords(self, pub, kw_type=None):
         Keyword = self.get_table("Keyword")
