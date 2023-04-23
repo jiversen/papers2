@@ -130,7 +130,11 @@ class Papers2(object):
         return self.get_session().query(Publication
             ).filter(Publication.ROWID == pub_id
             ).one()
-    
+
+    def delete_publication(self, pub):
+        self.get_session().delete(pub)
+        self.get_session().commit()
+
     # ooh, this is how chapters are linked to books
     def get_bundle(self, pub):
         try:
