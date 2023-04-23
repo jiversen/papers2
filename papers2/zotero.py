@@ -110,7 +110,7 @@ class ExtractRange(Extract):
 
 class ExtractTimestamp(Extract):
     def format(self, value):
-        datetime.fromtimestamp(value)
+        return datetime.utcfromtimestamp(value).strftime('%Y-%m-%dT%H:%M:%SZ')
 
 class ExtractBundle(Extract):
     def get_value(self, pub, context):
