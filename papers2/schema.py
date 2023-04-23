@@ -192,7 +192,7 @@ class Papers2(object):
             ).filter(PDF.object_id == pub.ROWID
             ).order_by(PDF.is_primary.desc())
         # resolve relative path names, but also retain item type to be able to properly translate to base folder
-        return ((os.path.join(self.folder, a.path), a.mime_type, self.get_pub_type(pub)) for a in attachments)
+        return ((os.path.join(self.folder, a.path), a.mime_type, self.get_pub_type(pub)) for a in attachments if a.path is not None)
     
     def get_keywords(self, pub, kw_type=None):
         Keyword = self.get_table("Keyword")
