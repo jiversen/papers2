@@ -3,7 +3,7 @@
 # a Zotero account.
 
 # bin/papers2zotero.py -a `cat zapi` -f "`cat pdir`" -i `cat zuid` -r 354 --dryrun --log-level DEBUG
-# bin/papers2zotero.py --config p2z.config -r 354 --dryrun
+# bin/papers2zotero.py --config p2z.config -r 354 --dryrun --zotero-link-base "/Users/jri/Library/CloudStorage/GoogleDrive-jiversen@ucsd.edu/My Drive/Zotero"
 
 
 from argparse import ArgumentParser
@@ -13,12 +13,15 @@ import sys
 from papers2.schema import Papers2, Label
 from papers2.zotero import ZoteroImporter
 from papers2.util import Checkpoint, parse_with_config
+from papers2.gdrive import GDriveAttachmentMover
 
 def add_arguments(parser):
     parser.add_argument("-a", "--api-key", help="Zotero API key")
     parser.add_argument("-C", "--include-collections", default=None, 
         help="Comma-delimited list of collections to convert into Zotero collections")
     parser.add_argument("-f", "--papers2-folder", default="~/Papers2", help="Path to Papers2 folder")
+    parser.add_argument("-z", "--attachment-link-base", default=None, help="Zotero linked attachment base directory; specifying will link files, not upload")
+    parser.add_argument("-s", "--gdrive-settings", default="settings.yaml", help="OAuth settings.yaml file for google drive access")
     parser.add_argument("-i", "--library-id", help="Zotero library ID")
     parser.add_argument("-k", "--keyword-types", default="user,label",
         help="Comma-delimited list of keyword types to convert into tags ('user','auto','label')")
@@ -53,7 +56,7 @@ def add_arguments(parser):
         choices=list(log._nameToLevel.keys()), help="Logger level for HTTP requests")
 
 def main():
-    args = parse_with_config(add_arguments, ('Papers2', 'Zotero'))
+    args = parse_with_config(add_arguments, ('Papers2', 'Zotero', 'Gdrive'))
 
     log.basicConfig(level=log._nameToLevel[args.log_level])
     log.getLogger('sqlalchemy.engine').setLevel(log._nameToLevel[args.sql_log_level])
@@ -80,9 +83,12 @@ def main():
     
     # open database
     p = Papers2(args.papers2_folder)
+
+    # create a google drive helper
+    g = GDriveAttachmentMover(settings_file=args.gdrive_settings)
     
     # initialize Zotero client
-    z = ZoteroImporter(args.library_id, args.library_type, args.api_key, p, 
+    z = ZoteroImporter(args.library_id, args.library_type, args.api_key, p, g, args.attachment_link_base,
         keyword_types, label_map, add_to_collections, args.attachments,
         args.batch_size, checkpoint, dryrun=args.dryrun)
     

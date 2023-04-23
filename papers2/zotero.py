@@ -51,6 +51,11 @@ FOLDER_MAP = {
     PubType.REPORT: 'Report',
     PubType.PROTOCOL: 'Report'
 }
+
+# folder relative to google drive root for the two sets of attachment directories
+PBASE = '/Papers2'
+ZBASE = '/Zotero'
+
 class Extract(object):
     def __init__(self, fn=None, num_values=1):
         self.fn = fn
@@ -267,6 +272,8 @@ class ZoteroImporter(object):
             upload_attachments="all", batch_size=50, checkpoint=None, dryrun=None):
         self.client = Zotero(library_id, library_type, api_key)
         self.papers2 = papers2
+        self.gdrive = gdrive
+        self.labd = zotero_linked_attachment_base
         self.keyword_types = keyword_types
         self.label_map = label_map
         self.upload_attachments = upload_attachments
@@ -319,9 +326,6 @@ class ZoteroImporter(object):
         # convert the Papers2 publication type to a Zotero item type
         item_type = ITEM_TYPES[self.papers2.get_pub_type(pub)]
 
-        # convert the Papers2 publication type to a Zotero item type directory name
-        item_z_dir = FOLDER_MAP[self.papers2.get_pub_type(pub)]
-        
         # get the template to fill in for an item of this type
         item = self.client.item_template(item_type)
 
@@ -437,47 +441,64 @@ class ZoteroImporter(object):
                             # TODO: modify pyzotero to pass MIME type for contentType key
                             attachments = list(path for path, mime, type in self._batch.attachments[item_idx])
                             if len(attachments) > 0:
-                                try:
-                                    #self.client.attachment_simple(attachments, objKey)
+                                # if no linked attachment base dir is specified, then upload attachments
+                                if self.labd is None:
+                                    try:
+                                        self.client.attachment_simple(attachments, objKey)
+                                    # This is to work around a bug in pyzotero where an exception is
+                                    # thrown if an attachment already exists
+                                    except KeyError:
+                                        log.info("One or more attachment already exists: {0}".format(",".join(attachments)))
+
+                                # if LABD is specified, then create a linked attachment and move from Papers2 to Zotero attachment dires
+                                else:
                                     for p2path, mime, ptype in self._batch.attachments[item_idx]:
 
-                                        #dissect path of original, reconstitute for zotero
+                                        # dissect path of original, reconstitute for zotero
                                         p2relpath = os.path.relpath(p2path, self.papers2.folder)
-                                        rp = relpath.split('/')
-                                        p2folder = rp[0]
-                                        p2initial = rp[1]
-                                        p2author = rp[2]
+                                        rp = p2relpath.split('/') #used to compose zotero output path
+                                        # p2folder = rp[0]
+                                        # p2initial = rp[1]
+                                        # p2author = rp[2]
+                                        # filename = rp[-1]
+                                        #clean up initial for output path
+                                        rp[1] = rp[1][0]
+                                        is_supplement = ((len(rp) == 5) & (rp[3] == 'Supplemental'))
+                                        if is_supplement:
+                                            del rp[3]
+                                            rp[-1] = 'Supplement-' + rp[-1]
+
+                                        from_path = os.path.join(PBASE, p2relpath)
+
                                         filename = rp[-1]
-                                        zfolder =  FOLDER_MAP[ptype]
-                                        zrelpath = os.path.join(zfolder,*rp[1:])
-                                        #hmm, do we know zotero's attachment path?
+                                        zfolder = FOLDER_MAP[ptype]
+                                        zrelpath = os.path.join(zfolder, *rp[1:])
+                                        to_path = os.path.join(ZBASE, zrelpath)
 
-
-
+                                        # create attachment item
                                         a = self.client.item_template('attachment', 'linked_file')
-                                        a['parent'] = objKey
-                                        a['path'] = path
+                                        #a['parent'] = objKey
+                                        a['path'] = zrelpath
                                         a['contentType'] = mime
                                         a['title'] = filename
-                                        a['accessDate'] = datetime.utcfromtimestamp(os.path.getatime(path)).strftime('%Y-%m-%dT%H:%M:%SZ')
-                                        # How indicate if is a supplementary file? should be evident from name
+                                        # File creation time: Unix uses st_birthtime, not ctime
+                                        # https://docs.python.org/3/library/os.html#os.stat_result
+                                        # Since Papers2 is mac-only, no problem here
+                                        filestat = os.stat(p2path)
+                                        a['accessDate'] = datetime.utcfromtimestamp(filestat.st_birthtime).strftime('%Y-%m-%dT%H:%M:%SZ')
 
+                                        try:
+                                            log.debug("Creating zotero link attachment...")
+                                            status = self.client.create_items(a, parentid=objKey)
+                                            if len(status['success']) == 1:
+                                                # attachment has been successfully created
+                                                log.debug(f"Success. Now Moving \n{from_path} to \n{to_path}.")
+                                                self.gdrive.move(from_path, to_path)
+                                                log.info(f"Moved {filename} P2Z!")
+                                        except Exception as e:
+                                            log.error(f"attachment link for {p2relpath} could not be made")
+                                            log.error(f"Error: {e}")
 
-
-                                    # JRI: TODO: create link items, with mime type, ideally change parent folder according to parent item type in order to match zotfile
-                                    #   may just do this with LINKS for now? get top-level directory for papers (based on type?) then convert that to zotero type
-                                    #   from ITEM_TYPES translation table. Where does papers translate its code to a name?
-                                    # itemptype = 'attachment', linkmode = 'linked_file', path = path, contentType = 'application/pdf' (or mime)
-                                    #  title
-                                    # accessDate
-                                    #  note, tags, collection (wouldn't these be properties of the parent?)
-                                    #
-
-                                # This is to work around a bug in pyzotero where an exception is
-                                # thrown if an attachment already exists
-                                except KeyError:
-                                    log.info("One or more attachment already exists: {0}".format(",".join(attachments)))
-                
                     # update checkpoint
                     if self.checkpoint is not None:
                         self.checkpoint.commit()
