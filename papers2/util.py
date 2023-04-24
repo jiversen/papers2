@@ -37,7 +37,6 @@ class Batch(object):
         self.items = []
         self.notes = []
         self.attachments = []
-        self.tags = []
         self.max_size = max_size
     
     @property
@@ -52,21 +51,19 @@ class Batch(object):
     def is_empty(self):
         return len(self.items) == 0
     
-    def add(self, item, notes, attachments, tags):
+    def add(self, item, notes, attachments):
         self.items.append(item)
         self.notes.append(notes)
         self.attachments.append(attachments)
-        self.tags.append(tags)
-    
+
     def iter(self):
-        for item in zip(self.items, self.notes, self.attachments, self.tags):
+        for item in zip(self.items, self.notes, self.attachments):
             yield item
     
     def clear(self):
         self.items = []
         self.notes = []
         self.attachments = []
-        self.tags = []
 
 # Simple checkpointing facility that maintains a
 # set of items IDs and pickles them on commit.
@@ -114,15 +111,17 @@ class JSONWriter(object):
         if self._fh != sys.stdout:
             self._fh.close()
     
-    def write(self, item, notes, attachments):
+    def write(self, item, notes=None, attachments=None):
         self._fh.write("ITEM:\n")
         self._fh.write(json.dumps(item, indent=4, separators=(',', ': ')))
         self._fh.write("\n")
 
-        self._fh.write("NOTES:\n")
-        self._fh.write(json.dumps(notes, indent=4, separators=(',', ': ')))
-        self._fh.write("\n")
+        if notes is not None:
+            self._fh.write("NOTES:\n")
+            self._fh.write(json.dumps(notes, indent=4, separators=(',', ': ')))
+            self._fh.write("\n")
 
-        self._fh.write("ATTACHMENTS:\n")
-        self._fh.write(json.dumps(attachments, indent=4, separators=(',', ': ')))
-        self._fh.write("\n")
+        if attachments is not None:
+            self._fh.write("ATTACHMENTS:\n")
+            self._fh.write(json.dumps(attachments, indent=4, separators=(',', ': ')))
+            self._fh.write("\n")

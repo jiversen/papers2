@@ -206,13 +206,13 @@ class ExtractKeywords(Extract):
     def get_value(self, pub, context):
         keywords = []
         if 'user' in context.keyword_types:
-            keywords.extend(k.name for k in context.papers2.get_keywords(pub, KeywordType.USER))
+            keywords.extend({"tag": k.name} for k in context.papers2.get_keywords(pub, KeywordType.USER))
         if 'auto' in context.keyword_types:
-            keywords.extend(k.name for k in context.papers2.get_keywords(pub, KeywordType.AUTO))
+            keywords.extend({"tag": k.name, "type": 1} for k in context.papers2.get_keywords(pub, KeywordType.AUTO)) # 1 is auto *https://github.com/bwiernik/zotero-shortdoi/issues/16)
         if 'label' in context.keyword_types:
             label = context.label_map.get(context.papers2.get_label_name(pub), None)
             if label is not None:
-                keywords.append(label)
+                keywords.append({"tag": label})
         return keywords
 
 class ExtractCollections(Extract):
@@ -262,8 +262,8 @@ EXTRACTORS = dict(
 )
 
 class ZoteroImporter(object):
-    def __init__(self, library_id, library_type, api_key, papers2,
-            keyword_types=('user','label'), label_map={}, add_to_collections=[], 
+    def __init__(self, library_id, library_type, api_key, papers2, gdrive, zotero_linked_attachment_base=None,
+            keyword_types=('user','auto','label'), label_map={}, add_to_collections=[],
             upload_attachments="all", batch_size=50, checkpoint=None, dryrun=None):
         self.client = Zotero(library_id, library_type, api_key)
         self.papers2 = papers2
@@ -332,17 +332,9 @@ class ZoteroImporter(object):
                 if value is not None:
                     item[key] = value
 
-        # add rating to 'Extras' field
-        # NOPE: Extras is already used for pmid; instead add a tag
-        #item['extra'] = '*' * pub.rating
-
-        # set the 'accessDate' to the papers imported date. convert from unix time to ISO 8601
-        # not needed--there is an ExtractTimestamp above that maps imported date directly!
-        #item['accessDate'] = datetime.utcfromtimestamp(pub.imported_date).strftime('%Y-%m-%dT%H:%M:%SZ')
-
         # append tags based on Collection membership
         collections = self.papers2.get_collections(pub).all()
-        tags = list(f'C:{c.name}' for c in collections) #fails properly if no collections
+        tags = list(f'C:{c.name}' for c in collections) #fails properly if no collections, returning empty list
 
         # add tag if we ever cited it
         if pub.citekey is not None:
@@ -352,6 +344,8 @@ class ZoteroImporter(object):
         if pub.rating > 0:
             tags.append('*' * pub.rating)
 
+        # add tags directly to item. Zotero tags needs to be a dict, not a list (see pyzotero.add_tags)
+        item['tags'].extend({"tag": tag} for tag in tags)
 
         # add notes, if any
         notes = []
@@ -371,7 +365,7 @@ class ZoteroImporter(object):
         
 
         # add to batch and checkpoint
-        self._batch.add(item, notes, attachments, tags)
+        self._batch.add(item, notes, attachments)
         if self.checkpoint is not None:
             self.checkpoint.add(pub.ROWID)
         
@@ -414,20 +408,6 @@ class ZoteroImporter(object):
                     
                     for k, objKey in successes.items():
                         item_idx = int(k)
-
-                        # add tags
-                        tags = self._batch.tags[item_idx]
-                        if len(tags) > 0:
-                            item = self.client.item(objKey)
-                            tag_status = self.client.add_tags(item,*tags)
-
-                            if len(tag_status['failed']) > 0:
-                                for status_idx, status_msg in tag_status['failed'].items():
-                                    log.error("Failed to add tags {0} for item {1}; code {2}; {3}".format(
-                                        tags, self._batch.items[status_idx]['title'],
-                                        status_msg['code'], status_msg['message'])
-                                    )
-
 
                         # add notes
                         notes = self._batch.notes[item_idx]
