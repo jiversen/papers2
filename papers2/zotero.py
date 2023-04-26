@@ -267,12 +267,12 @@ EXTRACTORS = dict(
 )
 
 class ZoteroImporter(object):
-    def __init__(self, library_id, library_type, api_key, papers2, gdrive, zotero_linked_attachment_base=None,
+    def __init__(self, library_id, library_type, api_key, papers2, attachmentMover, zotero_linked_attachment_base=None,
             keyword_types=('user','auto','label'), label_map={}, add_to_collections=[],
             upload_attachments="all", batch_size=50, checkpoint=None, dryrun=None):
         self.client = Zotero(library_id, library_type, api_key)
         self.papers2 = papers2
-        self.gdrive = gdrive
+        self.attachmentMover = attachmentMover
         self.labd = zotero_linked_attachment_base
         self.keyword_types = keyword_types
         self.label_map = label_map
@@ -435,14 +435,15 @@ class ZoteroImporter(object):
                                        status_msg['code'], status_msg['message']))
                     
                         # upload attachments and add items to collections
-                        # changed this to link instead--TODO: would be better to create an option to either upload or link
+                        # changed this to link instead
                         if self.upload_attachments != "none":
                         
                             # TODO: modify pyzotero to pass MIME type for contentType key
                             attachments = list(path for path, mime, type in self._batch.attachments[item_idx])
+
                             if len(attachments) > 0:
                                 # if no linked attachment base dir is specified, then upload attachments
-                                if self.labd is None:
+                                if self.labd is None or self.attachmentMover is None:
                                     try:
                                         self.client.attachment_simple(attachments, objKey)
                                     # This is to work around a bug in pyzotero where an exception is

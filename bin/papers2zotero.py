@@ -85,10 +85,10 @@ def main():
     p = Papers2(args.papers2_folder)
 
     # create a google drive helper
-    g = GDriveAttachmentMover(settings_file=args.gdrive_settings)
+    mover = GDriveAttachmentMover(settings_file=args.gdrive_settings)
     
     # initialize Zotero client
-    z = ZoteroImporter(args.library_id, args.library_type, args.api_key, p, g, args.attachment_link_base,
+    z = ZoteroImporter(args.library_id, args.library_type, args.api_key, p, mover, args.attachment_link_base,
         keyword_types, label_map, add_to_collections, args.attachments,
         args.batch_size, checkpoint, dryrun=args.dryrun)
     
