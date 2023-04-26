@@ -346,7 +346,7 @@ class ZoteroImporter(object):
 
         # add a tag with rating
         if pub.rating > 0:
-            tags.append('*' * pub.rating)
+            tags.append('⭐' * pub.rating) # Essential to use this symbol as tags plugin displays by filename
 
         # add tags directly to item. Zotero tags needs to be a dict, not a list (see pyzotero.add_tags)
         item['tags'].extend({"tag": tag} for tag in tags)
