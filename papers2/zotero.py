@@ -453,6 +453,7 @@ class ZoteroImporter(object):
 
                                 # if LABD is specified, then create a linked attachment and move from Papers2 to Zotero attachment dires
                                 else:
+                                    a = self.client.item_template('attachment', 'linked_file')  # single template item
                                     for p2path, mime, ptype in self._batch.attachments[item_idx]:
 
                                         # dissect path of original, reconstitute for zotero
@@ -476,15 +477,16 @@ class ZoteroImporter(object):
                                         zrelpath = os.path.join(zfolder, *rp[1:])
                                         to_path = os.path.join(ZBASE, zrelpath)
 
-                                        # create attachment item
-                                        a = self.client.item_template('attachment', 'linked_file')
+                                        # fill in attachment item
                                         #a['parent'] = objKey
-                                        a['path'] = zrelpath
+                                        a['path'] = 'attachments:' + zrelpath #prefix needed for linked attachments, apparently!
                                         a['contentType'] = mime
                                         a['title'] = filename
                                         # File creation time: Unix uses st_birthtime, not ctime
                                         # https://docs.python.org/3/library/os.html#os.stat_result
                                         # Since Papers2 is mac-only, no problem here
+                                        a['accessDate'] = ""
+                                        if os.path.exists(p2path):
                                         filestat = os.stat(p2path)
                                         a['accessDate'] = datetime.utcfromtimestamp(filestat.st_birthtime).strftime('%Y-%m-%dT%H:%M:%SZ')
 
