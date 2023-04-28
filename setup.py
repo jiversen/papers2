@@ -7,16 +7,16 @@ def find_scripts(script_dir):
 setup(
     name='papers2',
 
-    version='0.1.2',
+    version='0.2.0',
 
-    description='API to access Papers2 database, and scripts to convert to other formats',
+    description='API to access Papers2 database, and scripts to convert to Zotero. Built upon work of John Didion.',
 
     # The project's main homepage.
-    url='https://github.com/jdidion/papers2',
+    url='https://github.com/jiversen/papers2',
 
     # Author details
-    author='John Didion',
-    author_email='code@didion.net',
+    author='John Iversen',
+    author_email='john@johniversen.org',
 
     # Choose your license
     license='GPL',
@@ -34,13 +34,7 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.2',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.10',
     ],
 
     packages=find_packages(exclude=['scripts']),

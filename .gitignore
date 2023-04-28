@@ -3,10 +3,14 @@ config.txt
 papers2.egg-info/
 build/
 dist/
+__pycache__
 library.json
 papers2zotero.pickle
-papers2.egg-info
-__pycache__
+papers2zotero_errors.txt
+settings.yaml
+client_secret*
+credentials.json
+keyfile.json
 p2z.config
 *.bak
 p2z/*

@@ -5,46 +5,9 @@ from googleapiclient.errors import HttpError
 from pathlib import Path
 import logging as log
 import os
-
-# testing code
-
-# gauth = GoogleAuth()
-# gauth.LocalWebserverAuth()
-#
-# drive = GoogleDrive(gauth)
-#
-#
-# #this is pretty neat, for convenience, but it does not do a proper 'backend move'. Maybe I can cobble it together if I can extract
-# # some lower-level access from pydrive to the google API
-# # e.g. drive.auth.service should do it!
-#
-# fs = GDriveFileSystem(
-#     "root",
-#     client_id=drive.auth.attr['client_config']['client_id'],
-#     client_secret=drive.auth.attr['client_config']['client_secret'],
-#     client_json_file_path="/Users/Shared/dev/papers2/keyfile.json",
-# )
-#
-# #note, google drive has its root at 'root'
-# fs.exists('root/Papers2/Articles')
-# fs.exists("root/Zotero/Journal Article")
-#
-# #works great, just like that, but a) very slow and b) seems to involve a upload, though I--can't tell
-# fs.cp('root/Papers2/Articles/A/Abe/Abe 2008 - Neural Correlates of True Memory False Memory and Deception - Cereb Cortex.pdf',
-#       'root/Zotero/Journal Article/A/Abe/')
-#
-# # it has a nice way to walk the hierarchy to get item ids. Can I then do a simple move and update?
-# fs._get_item_id('root/Papers2/Articles/A/Abe/Abe 2008 - Neural Correlates of True Memory False Memory and Deception - Cereb Cortex.pdf')
-# fs._get_item_id('root/Zotero/Journal Article/A/AAA/',create=True) #recursive mkdir!
-#
-#
-# drive_service = drive.auth.service
-# file_id = fs._get_item_id('root/Papers2/Articles/A/Abe/Abe 2008 - Neural Correlates of True Memory False Memory and Deception - Cereb Cortex copy.pdf')
-# new_folder_id = fs._get_item_id('root/Zotero/Journal Article/A/AAA/',create=True)
+import shutil
 
 from abc import ABCMeta, abstractmethod
-
-GROOT = "root"
 
 #simple abstract class to define something that can move an attachment found at a path to a new directory
 # __init__ does any impementation-specific initialization
@@ -56,8 +19,29 @@ class AttachmentMover(object, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def move(self, from_path, to_path):
+    def move(self, from_path, to_path, keep_copy=False):
         return False
+
+#attachment mover for files stored locally. (Untested)
+class localAttachmentMover(AttachmentMover):
+
+    def __init__(self, **kwargs):
+        pass
+
+    def move(self, from_path, to_path, keep_copy=True):
+        try:
+            if not os.path.isdir(os.path.dirname(to_path)):
+                Path(os.path.dirname(to_path)).mkdir(parents=True, exist_ok=True)
+            if keep_copy:
+                shutil.copy2(from_path, to_path)
+            else:
+                shutil.move(from_path, to_path)
+        except Exception as e:
+            log.error(f'An error occurred moving {from_path} to {to_path}:\n {e}')
+            return False
+
+        return True
+
 
 # Class to encapsulate the handling of moving files within google drive
 # intended purpose is to move attachments from  Papers2/ to Zotero/ attachment directories
@@ -98,10 +82,11 @@ class GDriveAttachmentMover(AttachmentMover):
 
     #paths are absolute paths within the google drive, e.g. for My Drive/Dir -> /Dir
     # returns True/False if succeeded/failed
-    def move(self, from_path, to_path):
+    def move(self, from_path, to_path, keep_copy=False):
+        GROOT = "root"
         drive_service = self.drive.auth.service
         if drive_service is None:
-            return None
+            return False
 
         file_id = self.fs._get_item_id(GROOT + from_path)
         to_dir = os.path.dirname(to_path)
@@ -118,10 +103,10 @@ class GDriveAttachmentMover(AttachmentMover):
                                                fields='title').execute()
             log.debug(f'File with ID "{file_id}" has been moved to the new folder with ID "{new_folder_id}".')
         except HttpError as error:
-            log.error(f'An http error occurred moving {from_path} to {to_path}: {error}')
+            log.error(f'An http error occurred moving {from_path} to {to_path}:\n {error}')
             return False
         except Exception as e:
-            log.error(f'An http error occurred moving {from_path} to {to_path}: {e}')
+            log.error(f'An error occurred moving {from_path} to {to_path}:\n {e}')
 
         return True
 
