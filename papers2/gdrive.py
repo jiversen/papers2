@@ -57,9 +57,7 @@ class AttachmentMover(object, metaclass=ABCMeta):
 
     @abstractmethod
     def move(self, from_path, to_path):
-        pass
-
-
+        return False
 
 # Class to encapsulate the handling of moving files within google drive
 # intended purpose is to move attachments from  Papers2/ to Zotero/ attachment directories
@@ -99,6 +97,7 @@ class GDriveAttachmentMover(AttachmentMover):
         )
 
     #paths are absolute paths within the google drive, e.g. for My Drive/Dir -> /Dir
+    # returns True/False if succeeded/failed
     def move(self, from_path, to_path):
         drive_service = self.drive.auth.service
         if drive_service is None:
@@ -119,9 +118,11 @@ class GDriveAttachmentMover(AttachmentMover):
                                                fields='title').execute()
             log.debug(f'File with ID "{file_id}" has been moved to the new folder with ID "{new_folder_id}".')
         except HttpError as error:
-            log.error(f'An error occurred: {error}')
-            file = None
+            log.error(f'An http error occurred moving {from_path} to {to_path}: {error}')
+            return False
+        except Exception as e:
+            log.error(f'An http error occurred moving {from_path} to {to_path}: {e}')
 
-        return file
+        return True
 
 

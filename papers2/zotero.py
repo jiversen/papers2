@@ -269,7 +269,7 @@ EXTRACTORS = dict(
 class ZoteroImporter(object):
     def __init__(self, library_id, library_type, api_key, papers2, attachmentMover, zotero_linked_attachment_base=None,
             keyword_types=('user','auto','label'), label_map={}, add_to_collections=[],
-            upload_attachments="all", batch_size=50, checkpoint=None, dryrun=None):
+            upload_attachments="all", batch_size=50, checkpoint=None, dryrun=None, retry_failed=False):
         self.client = Zotero(library_id, library_type, api_key)
         self.papers2 = papers2
         self.attachmentMover = attachmentMover
@@ -279,6 +279,7 @@ class ZoteroImporter(object):
         self.upload_attachments = upload_attachments
         self.checkpoint = checkpoint
         self.dryrun = JSONWriter(dryrun) if dryrun is not None else None
+        self.retry_failed = retry_failed
         self._batch = Batch(batch_size)
         self._load_collections(add_to_collections)
     
@@ -320,8 +321,15 @@ class ZoteroImporter(object):
     def add_pub(self, pub):
         # ignore publications we've already imported
         if self.checkpoint is not None and self.checkpoint.contains(pub.ROWID):
-            log.debug("Skipping already imported publication {0}".format(pub.ROWID))
+            log.info("Skipping already imported publication {0}".format(pub.ROWID))
             return False
+
+        if self.checkpoint is not None and self.checkpoint.contains_failed(pub.ROWID):
+            if self.retry_failed:
+                log.warning("Retrying a failed publication {0}".format(pub.ROWID))
+            else:
+                log.info("Skipping already failed publication {0}".format(pub.ROWID))
+                return False
         
         # convert the Papers2 publication type to a Zotero item type
         item_type = ITEM_TYPES[self.papers2.get_pub_type(pub)]
@@ -399,12 +407,14 @@ class ZoteroImporter(object):
                     if len(status['failed']) > 0:
                         for status_idx, status_msg in status['failed'].items():
                             item_idx = int(status_idx)
+                            rowid = self.checkpoint.get(item_idx)
                             # remove failures from the checkpoint
                             if self.checkpoint is not None:
                                 self.checkpoint.remove(item_idx)
+                                self.checkpoint.add_failed(rowid)
                             item = self._batch.items[item_idx]
-                            log.error("Upload failed for item {0}; code {1}; {2}".format(
-                               item['title'], status_msg['code'], status_msg['message']))
+                            log.error(f"Item creation failed for papers ID {rowid}\n Zotero item {item['title]']}; code {status_msg['code']}; {status_msg['message']}")
+
                 
                     successes = {}
                     successes.update(status['success'])
@@ -412,6 +422,9 @@ class ZoteroImporter(object):
                     
                     for k, objKey in successes.items():
                         item_idx = int(k)
+                        rowid = self.checkpoint.get(item_idx)
+
+                        log.warning(f"ROWID: {rowid}. Trying to add Notes and Attachments...")
 
                         # add notes
                         notes = self._batch.notes[item_idx]
@@ -430,10 +443,9 @@ class ZoteroImporter(object):
                                     note_idx = int(status_idx)
                                     # just warn about these failures
                                     note = note_batch[note_idx]
-                                    log.error("Failed to create note {0} for item item {1}; code {2}; {3}".format(
-                                       note['note'], self._batch.items[status_idx]['title'],
-                                       status_msg['code'], status_msg['message']))
-                    
+                                    log.error(f"ROWID: {rowid}. Failed to create note {note['note']} for item item {self._batch.items[status_idx]['title']}; code {status_msg['code']}; {status_msg['message']}")
+                                    self.checkpoint.add_failed(rowid)
+
                         # upload attachments and add items to collections
                         # changed this to link instead
                         if self.upload_attachments != "none":
@@ -449,7 +461,7 @@ class ZoteroImporter(object):
                                     # This is to work around a bug in pyzotero where an exception is
                                     # thrown if an attachment already exists
                                     except KeyError:
-                                        log.info("One or more attachment already exists: {0}".format(",".join(attachments)))
+                                        log.warning("One or more attachment already exists: {0}".format(",".join(attachments)))
 
                                 # if LABD is specified, then create a linked attachment and move from Papers2 to Zotero attachment dires
                                 else:
@@ -488,19 +500,31 @@ class ZoteroImporter(object):
                                         a['accessDate'] = ""
                                         if os.path.exists(p2path):
                                         filestat = os.stat(p2path)
-                                        a['accessDate'] = datetime.utcfromtimestamp(filestat.st_birthtime).strftime('%Y-%m-%dT%H:%M:%SZ')
+                                            a['accessDate'] = datetime.utcfromtimestamp(filestat.st_birthtime).strftime('%Y-%m-%dT%H:%M:%SZ')
 
                                         try:
-                                            log.debug("Creating zotero link attachment...")
-                                            status = self.client.create_items(a, parentid=objKey)
+                                            log.debug("Creating zotero link attachment item...")
+                                            status = self.client.create_items([a], parentid=objKey)
                                             if len(status['success']) == 1:
                                                 # attachment has been successfully created
                                                 log.debug(f"Success. Now Moving \n{from_path} to \n{to_path}.")
-                                                self.gdrive.move(from_path, to_path)
-                                                log.info(f"Moved {filename} P2Z!")
+                                                if os.path.exists(p2path):
+                                                    if self.attachmentMover.move(from_path, to_path):
+                                                        log.info(f"Moved {filename} P2Z!")
+                                                    else:
+                                                        log.error(f"Attachment move of {filename} failed")
+                                                        self.checkpoint.add_failed(rowid)
+                                                else:
+                                                    log.error(f"Original file {p2path} seems not to exist. No move done.")
+                                                    self.checkpoint.add_failed(rowid)
+                                            else:
+                                                log.error(f"Attachment item not created for papers ROWID {rowid},  {p2relpath}")
+                                                self.checkpoint.add_failed(rowid)
+
                                         except Exception as e:
                                             log.error(f"attachment link for {p2relpath} could not be made")
                                             log.error(f"Error: {e}")
+                                            self.checkpoint.add_failed(rowid)
 
                     # update checkpoint
                     if self.checkpoint is not None:
@@ -511,6 +535,7 @@ class ZoteroImporter(object):
                     ))
             
             except:
+                # any error, we mark all items as not uploaded
                 log.error("Error importing {0} items to Zotero".format(self._batch.size))
                 if self.checkpoint is not None:
                     self.checkpoint.rollback()

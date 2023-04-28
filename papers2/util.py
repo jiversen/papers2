@@ -61,6 +61,7 @@ class Batch(object):
             yield item
     
     def clear(self):
+        self.rowids = []
         self.items = []
         self.notes = []
         self.attachments = []
@@ -72,21 +73,29 @@ class Checkpoint(object):
         self.filename = filename
         if os.path.exists(filename):
             with open(filename, "rb") as i:
-                self.ids = pickle.load(i)
+                tmp = pickle.load(i)
+                self.ids, self.failed = tmp
         else:
             self.ids = set()
+            self.failed = set()
         self._uncommitted = []
     
     def add(self, db_id):
         self._uncommitted.append(db_id)
     
-    def remove(self, db_id):
-        del self._uncommitted[db_id]
+    def remove(self, db_idx):
+        del self._uncommitted[db_idx]
+
+    def get(self, db_idx):
+        return self._uncommitted[db_idx]
+
+    def add_failed(self, db_id):
+        self.failed.add(db_id)
     
     def commit(self):
         self.ids.update(self._uncommitted)
         with open(self.filename, 'wb') as o:
-            pickle.dump(self.ids, o)
+            pickle.dump((self.ids, self.failed), o)
         self._uncommitted = []
     
     def rollback(self):
@@ -94,6 +103,9 @@ class Checkpoint(object):
     
     def contains(self, db_id):
         return db_id in self.ids
+
+    def contains_failed(self, db_id):
+        return db_id in self.failed
 
 # Create an enumerated type
 def enum(name, **enums):

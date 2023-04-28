@@ -9,6 +9,7 @@
 from argparse import ArgumentParser
 import logging as log
 import sys
+import json
 
 from papers2.schema import Papers2, Label
 from papers2.zotero import ZoteroImporter
@@ -38,6 +39,11 @@ def add_arguments(parser):
     parser.add_argument("--checkpoint-file", default="papers2zotero.pickle",
         help="File where list of Papers2 database IDs for successfully uploaded items "\
              "will be stored so that the program can be stopped and resumed.")
+    parser.add_argument("--errors-file", default="papers2zotero_errors.txt",
+        help="File where list of Papers2 database IDs for UNsuccessfully uploaded items "\
+             "will be stored for diagnostic.")
+    parser.add_argument("--retry", action="store_true", default=False,
+        help="Retry previously-failed conversions.")
     parser.add_argument("--dryrun", nargs="?", const="stdout", default=None,
         help="Just print out the item JSON that will be sent to Zotero, " \
              "rather than actually sending it. If a file name is specified, the JSON will be "\
@@ -58,9 +64,18 @@ def add_arguments(parser):
 def main():
     args = parse_with_config(add_arguments, ('Papers2', 'Zotero', 'Gdrive'))
 
-    log.basicConfig(level=log._nameToLevel[args.log_level])
+    log.basicConfig(level=log._nameToLevel[args.log_level], )
     log.getLogger('sqlalchemy.engine').setLevel(log._nameToLevel[args.sql_log_level])
     log.getLogger('requests').setLevel(log._nameToLevel[args.http_log_level])
+
+    file_handler = log.FileHandler(args.errors_file, mode='a')
+    file_handler.setLevel(log.WARNING)
+    file_handler.setFormatter(log.Formatter('%(asctime)s | %(levelname)-8s | %(message)s', "%Y-%m-%d %H:%M:%S"))
+    log.getLogger().addHandler(file_handler)
+    log.warning('='*24)
+    log.warning('Beginning papers2zotero')
+    log.warning(json.dumps(args.__dict__, indent=4))
+
 
     # create checkpoint for tracking uploaded items
     checkpoint = None
@@ -90,7 +105,7 @@ def main():
     # initialize Zotero client
     z = ZoteroImporter(args.library_id, args.library_type, args.api_key, p, mover, args.attachment_link_base,
         keyword_types, label_map, add_to_collections, args.attachments,
-        args.batch_size, checkpoint, dryrun=args.dryrun)
+        args.batch_size, checkpoint, dryrun=args.dryrun, retry_failed=args.retry)
     
     # Limit the number of publications to process
     # TODO: add additional options for filtering pubs to import
@@ -118,7 +133,12 @@ def main():
                 num_added += 1
             
             if max_pubs is not None and num_added >= max_pubs:
+                log.warning(f"Ending after max_pubx {max_pubs} records")
                 break
+
+            if z._batch.is_full:
+                z._commit_batch()
+                log.warning('==Committed Batch==')
 
         except Exception as e:
             log.error("Error converting publication {0} to Zotero".format(pub.ROWID), exc_info=e)
@@ -129,6 +149,5 @@ def main():
     log.info("Exported {0} papers to Zotero".format(num_added))
 
 if __name__ == "__main__":
-    #import pdb; pdb.set_trace()
     main()
 
