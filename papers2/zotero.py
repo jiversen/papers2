@@ -525,6 +525,9 @@ class ZoteroImporter(object):
                                         a['path'] = 'attachments:' + zrelpath #prefix needed for linked attachments, apparently!
                                         a['contentType'] = mime
                                         a['title'] = filename
+                                        a['tags'] = [];
+                                        if is_supplement:
+                                            a['tags'] = [{'tag': '&SUPP'}]
                                         # File creation time: Unix uses st_birthtime, not ctime
                                         # https://docs.python.org/3/library/os.html#os.stat_result
                                         # Since Papers2 is mac-only, no problem here
