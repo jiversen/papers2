@@ -217,7 +217,7 @@ class ExtractIdentifier(Extract):
             idents.extend(context.papers2.get_identifiers(pub, src))
         return idents
     
-    def format_value(self, value):
+    def format(self, value):
         return value.remote_id
 
 class ExtractPubmedID(ExtractIdentifier):
