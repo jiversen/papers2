@@ -1,7 +1,6 @@
 # Wrapper around a pyzotero session that can convert Papers2
 # entities to zotero items.
 #
-# TODO: item types: manuscript report thesis
 # TODO: handle archived papers?
 # TODO: user-definable date format; for now using YYYY-MM-DD
 # TODO: use relations to link book chapters to parent volume
@@ -18,18 +17,34 @@ from .util import Batch, JSONWriter
 # mapping of papers2 publication types 
 # to Zotero item types 
 ITEM_TYPES = {
+
     PubType.BOOK                : 'book',
+    PubType.BOOK_SECTION        : 'bookSection',
     PubType.THESIS              : 'thesis',
     PubType.E_BOOK              : 'book',
-    PubType.BOOK_SECTION        : 'bookSection',
+    PubType.PAMPHLET            : 'document',
     PubType.WEBSITE             : 'webpage',
+    PubType.POSTER              : 'presentation',
+    PubType.PRESENTATION        : 'presentation',
+    PubType.ABSTRACT            : 'presentation',
+    PubType.LECTURE             : 'presentation',
+    PubType.PHOTO               : 'artwork',
     PubType.SOFTWARE            : 'computerProgram',
+    PubType.DATA_FILE           : 'dataset',
     PubType.JOURNAL_ARTICLE     : 'journalArticle',
+    PubType.MAGAZINE_ARTICLE    : 'magazineArticle',
     PubType.NEWSPAPER_ARTICLE   : 'newspaperArticle',
     PubType.WEBSITE_ARTICLE     : 'webpage',
+    PubType.MANUSCRIPT          : 'manuscript',
     PubType.PREPRINT            : 'preprint',
     PubType.CONFERENCE_PAPER    : 'conferencePaper',
+    PubType.PATENT              : 'patent',
     PubType.REPORT              : 'report',
+    PubType.TECHREPORT          : 'report',
+    PubType.SCIENTIFIC_REPORT   : 'report',
+    PubType.GRANT               : 'report',
+    PubType.ASSIGNMENT          : 'report',
+    PubType.REFERENCE           : 'report',
     PubType.PROTOCOL            : 'report'
 }
 
@@ -38,17 +53,32 @@ ITEM_TYPES = {
 #   linked-files directory (as managed by ZOTFILE, configured to use %T type as top level folders)
 FOLDER_MAP = {
     PubType.BOOK: 'Book',
+    PubType.BOOK_SECTION: 'Book Section',
     PubType.THESIS: 'Thesis',
     PubType.E_BOOK: 'Book',
-    PubType.BOOK_SECTION: 'Book Section',
+    PubType.PAMPHLET: 'Document',
     PubType.WEBSITE: 'Web Page',
+    PubType.POSTER: 'Presentation',
+    PubType.PRESENTATION: 'Presentation',
+    PubType.ABSTRACT: 'Presentation',
+    PubType.LECTURE: 'Presentation',
+    PubType.PHOTO: 'Artwork',
     PubType.SOFTWARE: 'Software',
+    PubType.DATA_FILE: 'Dataset',
     PubType.JOURNAL_ARTICLE: 'Journal Article',
+    PubType.MAGAZINE_ARTICLE: 'Magazine Article',
     PubType.NEWSPAPER_ARTICLE: 'Newspaper Article',
-    PubType.WEBSITE_ARTICLE: 'Webpage',
+    PubType.WEBSITE_ARTICLE: 'Web Page',
+    PubType.MANUSCRIPT: 'Journal Article',
     PubType.PREPRINT: 'Preprint',
     PubType.CONFERENCE_PAPER: 'Conference Paper',
+    PubType.PATENT: 'Patent',
     PubType.REPORT: 'Report',
+    PubType.TECHREPORT: 'Report',
+    PubType.SCIENTIFIC_REPORT: 'Report',
+    PubType.GRANT: 'Report',
+    PubType.ASSIGNMENT: 'Report',
+    PubType.REFERENCE: 'Report',
     PubType.PROTOCOL: 'Report'
 }
 
@@ -499,7 +529,7 @@ class ZoteroImporter(object):
                                         # Since Papers2 is mac-only, no problem here
                                         a['accessDate'] = ""
                                         if os.path.exists(p2path):
-                                        filestat = os.stat(p2path)
+                                            filestat = os.stat(p2path)
                                             a['accessDate'] = datetime.utcfromtimestamp(filestat.st_birthtime).strftime('%Y-%m-%dT%H:%M:%SZ')
 
                                         try:

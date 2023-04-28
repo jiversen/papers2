@@ -14,20 +14,37 @@ from sqlalchemy.sql.expression import or_
 
 from .util import enum
 
+# assign type by papers subtype id. Not an exhaustive list, but all I have in library. Other types will be silently ignored.
+#   if updating, be sure to also update mappings in zotero.py
 PubAttrs = namedtuple("PubAttrs", ("name", "id"))
 PubType = enum('PubType',
     BOOK=               PubAttrs("Book",                0),
-    BOOK_SECTION=       PubAttrs("BookSection",         -1000), #JRI by inspection
+    BOOK_SECTION=       PubAttrs("BookSection",         -1000),
     THESIS=             PubAttrs("Thesis",              10),
     E_BOOK=             PubAttrs("eBook",               20),
+    PAMPHLET=           PubAttrs("Pamphlet",            30),
     WEBSITE=            PubAttrs("Website",             300),
+    POSTER=             PubAttrs("Poster",              313),
+    PRESENTATION=       PubAttrs("Website",             314),
+    ABSTRACT=           PubAttrs("Website",             315),
+    LECTURE=            PubAttrs("Website",             319),
+    PHOTO=              PubAttrs("Website",             325),
     SOFTWARE=           PubAttrs("Software",            341),
+    DATA_FILE=          PubAttrs("Data File",           345),
     JOURNAL_ARTICLE=    PubAttrs("Journal Article",     400),
+    MAGAZINE_ARTICLE=   PubAttrs("Magazine Article",    401),
     NEWSPAPER_ARTICLE=  PubAttrs("Newspaper Article",   402),
     WEBSITE_ARTICLE=    PubAttrs("Website Article",     403),
+    MANUSCRIPT=         PubAttrs("Manuscript",          410),
     PREPRINT=           PubAttrs("Preprint",            415),
     CONFERENCE_PAPER=   PubAttrs("Conference Paper",    420),
+    PATENT=             PubAttrs("Patent",              500),
     REPORT=             PubAttrs("Report",              700),
+    TECHREPORT=         PubAttrs("Technical Report",    701),
+    SCIENTIFIC_REPORT=  PubAttrs("Scientific Report",   702),
+    GRANT=              PubAttrs("Grant",               703),
+    ASSIGNMENT=         PubAttrs("Assignment",          704),
+    REFERENCE=          PubAttrs("Reference",           713),
     PROTOCOL=           PubAttrs("Protocol",            717)
 )
 pub_type_id_to_pub_type = dict((t.id,t) for t in PubType.__values__)
@@ -146,10 +163,9 @@ class Papers2(object):
             self._cache['bundle'][pub.bundle] = bundle
         return self._cache['bundle'][pub.bundle]
         
-    # Get the PubType name for a publication code
-    #  previously, incorrectly used subtype, but that has variants not found in the mapping dict!
+    # Get the PubType name for a publication subtype code (see PubType enum)
     def get_pub_type(self, pub):
-        return pub_type_id_to_pub_type[pub.type]
+        return pub_type_id_to_pub_type[pub.subtype]
     
     def get_label_name(self, pub):
         return label_num_to_label[pub.label].name

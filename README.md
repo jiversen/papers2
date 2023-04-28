@@ -1,13 +1,13 @@
 # Python API for Papers2 database
 
-This library provides a high-level interface to the Papers2 database, along with scripts to export your library to various formats.
+This library provides a high-level interface to the Papers2 database, along with scripts to export your library to Zotero.
 
-As of April 2023, updated to python3 and extended to enable creating linked, instead of uploaded, attachments.
+As of April 2023, updated to python3 and extended to enable creating linked, instead of uploaded, attachments and backend moving of attachments in cloud storagee.
 
 # Installation
 
 ```python
-pip install git+https://github.com/jiversen/papers2.git
+pip install git+git://github.com/jiversen/papers2.git
 ```
 
 This will install the dependencies:
@@ -41,7 +41,7 @@ The API uses SqlAlchemy auto-mappings to generate objects from database tables, 
 print dir(pub)
 ```
 
-Better documentation for the API is forthcomming.
+Better documentation for the API is forthcoming.
 
 ## Command Line
 
