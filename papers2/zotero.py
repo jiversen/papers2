@@ -440,7 +440,6 @@ class ZoteroImporter(object):
                             rowid = self.checkpoint.get(item_idx)
                             # remove failures from the checkpoint
                             if self.checkpoint is not None:
-                                self.checkpoint.remove(item_idx)
                                 self.checkpoint.add_failed(rowid)
                             item = self._batch.items[item_idx]
                             log.error(f"Item creation failed for papers ID {rowid}\n Zotero item {item['title]']}; code {status_msg['code']}; {status_msg['message']}")
@@ -454,7 +453,7 @@ class ZoteroImporter(object):
                         item_idx = int(k)
                         rowid = self.checkpoint.get(item_idx)
 
-                        log.warning(f"ROWID: {rowid}. Trying to add Notes and Attachments...")
+                        log.warning(f"ROWID: {rowid}. Add Notes and Attachments...")
 
                         # add notes
                         notes = self._batch.notes[item_idx]
@@ -483,7 +482,9 @@ class ZoteroImporter(object):
                             # TODO: modify pyzotero to pass MIME type for contentType key
                             attachments = list(path for path, mime, type in self._batch.attachments[item_idx])
 
-                            if len(attachments) > 0:
+                            if len(attachments) == 0:
+                                log.warning("No Attachments.")
+                            else:
                                 # if no linked attachment base dir is specified, then upload attachments
                                 if self.labd is None or self.attachmentMover is None:
                                     try:
@@ -560,13 +561,15 @@ class ZoteroImporter(object):
                     if self.checkpoint is not None:
                         self.checkpoint.commit()
                 
-                    log.info("Batch committed: {0} items created and {1} items unchanged out of {2} attempted".format(
-                        len(status['success']), len(status['unchanged']), self._batch.size
-                    ))
+                    log.warning("Batch committed: {0} items created and {1} items unchanged out of {2} attempted".format(
+                        len(status['success']), len(status['unchanged']), self._batch.size)
+                    )
+                    log.warning(f"Total added: {len(checkpoint.ids)}\n  Failed ids: {checkpoint.failed}")
             
-            except:
-                # any error, we mark all items as not uploaded
-                log.error("Error importing {0} items to Zotero".format(self._batch.size))
+            except Exception as e:
+                # should handle specific errors above, but if anything else, repoort
+                log.error(f"Unhandled error importing items to Zotero:\n{e}")
+                log.error(f"Checkpoint:\nCommitted: {self.checkpooint.ids}\nUncommitted: {self.sheckpoint._uncommitted}\nFailed: {self.checkpoint.failed}")
                 if self.checkpoint is not None:
                     self.checkpoint.rollback()
                 raise

@@ -3,14 +3,17 @@ import os
 import pickle
 import re
 import sys
+import logging as log
 
 from argparse import ArgumentParser
 from configparser import SafeConfigParser as ConfigParser
+
 
 def read_property_file(f, defaults=None):
     config = ConfigParser(defaults)
     config.read(f)
     return config
+
 
 def parse_with_config(add_args, sections, short_name="c", long_name="config", 
         default=None, help="Configuration file", **kwargs):
@@ -31,6 +34,7 @@ def parse_with_config(add_args, sections, short_name="c", long_name="config",
     parser.set_defaults(**defaults)
     args = parser.parse_args(args=rest)
     return args
+
 
 class Batch(object):
     def __init__(self, max_size):
@@ -66,6 +70,7 @@ class Batch(object):
         self.notes = []
         self.attachments = []
 
+
 # Simple checkpointing facility that maintains a
 # set of items IDs and pickles them on commit.
 class Checkpoint(object):
@@ -82,6 +87,7 @@ class Checkpoint(object):
     
     def add(self, db_id):
         self._uncommitted.append(db_id)
+        self.failed.discard(db_id) # we're giving it another chance
     
     def remove(self, db_idx):
         del self._uncommitted[db_idx]
@@ -93,11 +99,12 @@ class Checkpoint(object):
         self.failed.add(db_id)
     
     def commit(self):
-        self.ids.update(self._uncommitted)
+        to_commit = (id for id in self._uncommitted if id not in self.failed)
+        self.ids.update(to_commit)
         with open(self.filename, 'wb') as o:
             pickle.dump((self.ids, self.failed), o)
         self._uncommitted = []
-    
+
     def rollback(self):
         self._uncommitted = []
     
@@ -107,6 +114,7 @@ class Checkpoint(object):
     def contains_failed(self, db_id):
         return db_id in self.failed
 
+
 # Create an enumerated type
 def enum(name, **enums):
     _enums = enums.copy()
@@ -114,7 +122,8 @@ def enum(name, **enums):
     _enums["__values__"] = list(v for v in list(enums.values()))
     _enums["__reverse_dict__"] = dict((value, key) for key,value in enums.items())
     return type(name, (), _enums)
-    
+
+
 class JSONWriter(object):
     def __init__(self, file):
         self._fh = sys.stdout if file == "stdout" else open(file, "w")
