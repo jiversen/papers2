@@ -192,7 +192,7 @@ class ExtractCreators(Extract):
         elif author.type == 1:
             creator_type = 'editor'
         else:
-            raise Exception("Unsupported author type {0}".format(author.type))
+            raise Exception(f"Unsupported author type {author.type}")
         
         if author.institutional > 0:
             return { 
@@ -225,7 +225,7 @@ class ExtractPubmedID(ExtractIdentifier):
         ExtractIdentifier.__init__(self, (IDSource.PUBMED, IDSource.PMC))
     
     def format(self, value):
-        return "PMID: {0}".format(value.remote_id) 
+        return f"PMID: {value.remote_id}"
 
 class ExtractUrl(Extract):
     def get_value(self, pub, context):
@@ -324,7 +324,7 @@ class ZoteroImporter(object):
         if len(add_to_collections) > 0:
             if self.dryrun is not None:
                 for c in add_to_collections:
-                    self.collections[c] = "<{0}>".format(c) #for debugging during dry-runs
+                    self.collections[c] = f"<{c}>"  #for debugging during dry-runs
                 
             else:
                 # fetch existing zotero collections
@@ -351,14 +351,14 @@ class ZoteroImporter(object):
     def add_pub(self, pub):
         # ignore publications we've already imported
         if self.checkpoint is not None and self.checkpoint.contains(pub.ROWID):
-            log.info("Skipping already imported publication {0}".format(pub.ROWID))
+            log.info(f"Skipping already imported publication {pub.ROWID}: {pub.title}")
             return False
 
         if self.checkpoint is not None and self.checkpoint.contains_failed(pub.ROWID):
             if self.retry_failed:
-                log.warning("Retrying a failed publication {0}".format(pub.ROWID))
+                log.warning(f"Retrying a failed publication {pub.ROWID}: {pub.title}")
             else:
-                log.info("Skipping already failed publication {0}".format(pub.ROWID))
+                log.info(f"Skipping already failed publication {pub.ROWID}: {pub.title}")
                 return False
         
         # convert the Papers2 publication type to a Zotero item type
@@ -396,7 +396,7 @@ class ZoteroImporter(object):
         
         reviews = self.papers2.get_reviews(pub)
         for r in reviews:
-            notes.append("{0} Rating: {1}".format(r.content, r.rating))
+            notes.append(f"{r.content} Rating: {r.rating}")
 
 
         # get paths to attachments
@@ -490,7 +490,7 @@ class ZoteroImporter(object):
                                     # This is to work around a bug in pyzotero where an exception is
                                     # thrown if an attachment already exists
                                     except KeyError:
-                                        log.warning("One or more attachment already exists: {0}".format(",".join(attachments)))
+                                        log.warning(f"One or more attachment already exists: {','.join(attachments)}")
 
                                 # if LABD is specified, then create a linked attachment and move from Papers2 to Zotero attachment dires
                                 else:
@@ -562,9 +562,9 @@ class ZoteroImporter(object):
                     if self.checkpoint is not None:
                         self.checkpoint.commit()
                 
-                    log.warning("Batch committed: {0} items created and {1} items unchanged out of {2} attempted".format(
-                        len(item_status['success']), len(item_status['unchanged']), self._batch.size)
-                    )
+                    log.warning(
+                        f"Batch committed: {len(item_status['success'])} items created and {len(item_status['unchanged'])} items unchanged out of {self._batch.size} attempted"
+                        )
                     log.warning(f"Total added: {len(self.checkpoint.ids)}\n  Failed ids: {self.checkpoint.failed}")
             
             except Exception as e:

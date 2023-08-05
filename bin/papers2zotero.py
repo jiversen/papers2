@@ -102,7 +102,7 @@ def main():
         label_map.update(dict(s.split('=') for s in args.label_map.split(",")))
     for label in Label.__values__:
         if label.name not in label_map:
-            label_map[label.name] = "{0}{1}".format(args.label_tags_prefix, label.name)
+            label_map[label.name] = f"{args.label_tags_prefix}{label.name}"
     
     # open database
     p = Papers2(args.papers2_folder)
@@ -151,7 +151,7 @@ def main():
                 break
 
             if z.add_pub(pub):
-                log.debug("Added to batch: {0}".format(pub.title))
+                log.debug(f"Added to batch {pub.ROWID}: {pub.title}")
                 num_added += 1
 
             if z._batch.is_full:
@@ -159,12 +159,12 @@ def main():
                 log.warning('==Committed Batch==')
 
         except Exception as e:
-            log.error("Error converting publication {0} to Zotero".format(pub.ROWID), exc_info=e)
+            log.error(f"Error converting publication {pub.ROWID} ({pub.title}) to Zotero", exc_info=e)
 
     p.close()
     z.close()
 
-    log.info("Exported {0} papers to Zotero".format(num_added))
+    log.info(f"Exported {num_added} papers to Zotero")
 
 if __name__ == "__main__":
     main()
