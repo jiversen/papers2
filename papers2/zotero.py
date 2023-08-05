@@ -324,7 +324,7 @@ class ZoteroImporter(object):
         if len(add_to_collections) > 0:
             if self.dryrun is not None:
                 for c in add_to_collections:
-                    self.collections[c] = "<{0}>".format(c)
+                    self.collections[c] = "<{0}>".format(c) #for debugging during dry-runs
                 
             else:
                 # fetch existing zotero collections
@@ -432,22 +432,20 @@ class ZoteroImporter(object):
 
                 else:
                     # upload metadata
-                    status = self.client.create_items(self._batch.items)
-                    
-                    if len(status['failed']) > 0:
-                        for status_idx, status_msg in status['failed'].items():
+                    item_status = self.client.create_items(self._batch.items)
+                    successes = {}
+                    successes.update(item_status['success'])
+                    successes.update(item_status['unchanged'])
+
+                    if len(item_status['failed']) > 0:
+                        for status_idx, status_msg in item_status['failed'].items():
                             item_idx = int(status_idx)
                             rowid = self.checkpoint.get(item_idx)
                             # remove failures from the checkpoint
                             if self.checkpoint is not None:
                                 self.checkpoint.add_failed(rowid)
                             item = self._batch.items[item_idx]
-                            log.error(f"Item creation failed for papers ID {rowid}\n Zotero item {item['title]']}; code {status_msg['code']}; {status_msg['message']}")
-
-                
-                    successes = {}
-                    successes.update(status['success'])
-                    successes.update(status['unchanged'])
+                            log.error(f"Item creation failed for papers ID {rowid}\n Zotero item {item['title']}; code {status_msg['code']}; {status_msg['message']}")
                     
                     for k, objKey in successes.items():
                         item_idx = int(k)
@@ -538,8 +536,8 @@ class ZoteroImporter(object):
 
                                         try:
                                             log.debug("Creating zotero link attachment item...")
-                                            status = self.client.create_items([a], parentid=objKey)
-                                            if len(status['success']) == 1:
+                                            link_status = self.client.create_items([a], parentid=objKey)
+                                            if len(link_status['success']) == 1:
                                                 # attachment has been successfully created
                                                 log.debug(f"Success. Now Moving \n{from_path} to \n{to_path}.")
                                                 if os.path.exists(p2path):
@@ -565,14 +563,14 @@ class ZoteroImporter(object):
                         self.checkpoint.commit()
                 
                     log.warning("Batch committed: {0} items created and {1} items unchanged out of {2} attempted".format(
-                        len(status['success']), len(status['unchanged']), self._batch.size)
+                        len(item_status['success']), len(item_status['unchanged']), self._batch.size)
                     )
-                    log.warning(f"Total added: {len(checkpoint.ids)}\n  Failed ids: {checkpoint.failed}")
+                    log.warning(f"Total added: {len(self.checkpoint.ids)}\n  Failed ids: {self.checkpoint.failed}")
             
             except Exception as e:
                 # should handle specific errors above, but if anything else, repoort
                 log.error(f"Unhandled error importing items to Zotero:\n{e}")
-                log.error(f"Checkpoint:\nCommitted: {self.checkpooint.ids}\nUncommitted: {self.sheckpoint._uncommitted}\nFailed: {self.checkpoint.failed}")
+                log.error(f"Checkpoint:\nCommitted: {self.checkpoint.ids}\nUncommitted: {self.checkpoint._uncommitted}\nFailed: {self.checkpoint.failed}")
                 if self.checkpoint is not None:
                     self.checkpoint.rollback()
                 raise

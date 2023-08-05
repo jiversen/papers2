@@ -75,20 +75,21 @@ def main():
     log.getLogger('sqlalchemy.engine').setLevel(log._nameToLevel[args.sql_log_level])
     log.getLogger('requests').setLevel(log._nameToLevel[args.http_log_level])
 
-    file_handler = log.FileHandler(args.errors_file, mode='a')
-    file_handler.setLevel(log.WARNING)
-    file_handler.setFormatter(log.Formatter('%(asctime)s | %(levelname)-8s | %(message)s', "%Y-%m-%d %H:%M:%S"))
-    log.getLogger().addHandler(file_handler)
-    log.warning('='*24)
-    log.warning('Beginning papers2zotero')
-    log.warning(json.dumps(args.__dict__, indent=4))
-
+    if not args.dryrun:
+        file_handler = log.FileHandler(args.errors_file, mode='a')
+        file_handler.setLevel(log.WARNING)
+        file_handler.setFormatter(log.Formatter('%(asctime)s | %(levelname)-8s | %(message)s', "%Y-%m-%d %H:%M:%S"))
+        log.getLogger().addHandler(file_handler)
+        log.warning('='*24)
+        log.warning('Beginning papers2zotero')
+        log.warning(json.dumps(args.__dict__, indent=4))
 
     # create checkpoint for tracking uploaded items
     checkpoint = None
     if args.dryrun is None and args.checkpoint_file is not None:
         checkpoint = Checkpoint(args.checkpoint_file)
-    
+        log.warning(f"Checkpoint: Total added so far: {len(checkpoint.ids)}\n  Failed ids: {checkpoint.failed}")
+
     keyword_types = args.keyword_types.split(",")
     
     add_to_collections = [] if args.no_collections else None
@@ -107,14 +108,18 @@ def main():
     p = Papers2(args.papers2_folder)
 
     # create an attachment file mover for use if needed (args.attachment_link_base is specified
-    if args.attachment_cloud is None:
-        mover = localAttachmentMover()
-    else:
-        if args.attachment_cloud == "gdrive":
-            mover = GDriveAttachmentMover(settings_file=args.cloud_auth_settings)
+    mover = None
+    if args.attachment_link_base is not None and args.dryrun is None:
+        if args.attachment_cloud is None:
+            mover = localAttachmentMover()
         else:
-            mover = None
-    
+            if args.attachment_cloud == "gdrive":
+                mover = GDriveAttachmentMover(settings_file=args.cloud_auth_settings)
+            else:
+                log.error(f"Unknown cloud type: {args.attachment_cloud}")
+                quit()
+
+
     # initialize Zotero client
     z = ZoteroImporter(args.library_id, args.library_type, args.api_key, p, mover, args.attachment_link_base,
         keyword_types, label_map, add_to_collections, args.attachments,
@@ -141,13 +146,13 @@ def main():
     
     for pub in q:
         try:
-            if z.add_pub(pub):
-                log.debug("Added to batch: {0}".format(pub.title))
-                num_added += 1
-            
             if max_pubs is not None and num_added >= max_pubs:
                 log.warning(f"Ending after max_pubx {max_pubs} records")
                 break
+
+            if z.add_pub(pub):
+                log.debug("Added to batch: {0}".format(pub.title))
+                num_added += 1
 
             if z._batch.is_full:
                 z._commit_batch()
