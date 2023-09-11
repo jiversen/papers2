@@ -165,6 +165,7 @@ def main():
     z.close()
 
     log.info(f"Exported {num_added} papers to Zotero")
+    exit(0)
 
 if __name__ == "__main__":
     main()

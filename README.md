@@ -11,9 +11,9 @@ This was built on the original work of [John Didion](https://github.com/jdidion/
 pip install git+ssh://github.com/jiversen/papers2.git
 ```
 
-This will install the dependencies:
+This should install the dependencies:
 
-* [pyzotero](https://github.com/urschrei/pyzotero)
+* [pyzotero](https://github.com/jiversen/pyzotero)
 * [sqlalchemy](http://www.sqlalchemy.org/)
 
 ## Optional dependencies, for cloud-backed attachment storage (google drive is implemented).
