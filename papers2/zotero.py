@@ -360,7 +360,10 @@ class ZoteroImporter(object):
             else:
                 log.info(f"Skipping already failed publication {pub.ROWID}: {pub.title}")
                 return False
-        
+
+        if self.dryrun:
+            return False
+
         # convert the Papers2 publication type to a Zotero item type
         item_type = ITEM_TYPES[self.papers2.get_pub_type(pub)]
 
@@ -548,7 +551,8 @@ class ZoteroImporter(object):
                                                         self.checkpoint.add_failed(rowid)
                                                 else:
                                                     log.error(f"Original file {p2path} seems not to exist. No move done.")
-                                                    self.checkpoint.add_failed(rowid)
+                                                    # as of 10/23, I've copied over a lot of papers manually and deleted their pdfs, so let's not consider it a fail if the file doesn't exist
+                                                    # self.checkpoint.add_failed(rowid)
                                             else:
                                                 log.error(f"Attachment item not created for papers ROWID {rowid},  {p2relpath}")
                                                 self.checkpoint.add_failed(rowid)

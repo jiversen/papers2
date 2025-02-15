@@ -59,10 +59,23 @@ class GDriveAttachmentMover(AttachmentMover):
         json_file = str(settings_path.joinpath("keyfile.json"))
 
         gauth = GoogleAuth(settings_file=str(settings_file))
-        gauth.LocalWebserverAuth()
+        gauth.LoadCredentials()
+        if gauth.credentials is None:
+            # Authenticate if they're not there
+            gauth.LocalWebserverAuth()
+        elif gauth.access_token_expired:
+            # Refresh them if expired
+            gauth.Refresh()
+        else:
+            # Initialize the saved creds
+            gauth.Authorize()
 
-        #sometimes fails; try removing credentials file
+        # Save the current credentials to a file
+        gauth.SaveCredentials()
+
+        #sometimes fails; try removing credentials file--bruteforce, but failsafe
         if gauth.service is None:
+            # breakpoint()
             if os.path.exists(cred_file):
                 os.remove(cred_file)
             if os.path.exists(json_file):
@@ -75,8 +88,8 @@ class GDriveAttachmentMover(AttachmentMover):
         self.drive = GoogleDrive(gauth)
         self.fs = GDriveFileSystem(
             "root",
-            client_id=self.drive.auth.attr['client_config']['client_id'],
-            client_secret=self.drive.auth.attr['client_config']['client_secret'],
+            client_id=self.drive.auth.attr['settings']['client_config']['client_id'],
+            client_secret=self.drive.auth.attr['settings']['client_config']['client_secret'],
             client_json_file_path=json_file
         )
 

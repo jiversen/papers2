@@ -30,6 +30,8 @@ def add_arguments(parser):
         help="For items with a label (i.e. color), add a tag of the form '<prefix><color>'")
     parser.add_argument("-r", "--rowids", default=None,
         help="Comma-delimited list of database IDs of papers publications to process")
+    parser.add_argument("--author", default=None,
+        help="Author of papers publications to process")
     parser.add_argument("-t", "--library-type", default="user", choices=("user","group"),
         help="Zotero library type (user or group)")
     parser.add_argument("--batch-size", type=int, default=50, 
@@ -135,6 +137,9 @@ def main():
         num_ids = len(query_args['row_ids'])
         if max_pubs is None or max_pubs > num_ids:
             max_pubs = num_ids
+
+    if args.author is not None:
+        query_args['author'] = args.author
     
     # Prepare query
     q = p.get_publications(**query_args)

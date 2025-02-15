@@ -82,7 +82,7 @@ class Papers2(object):
     def __init__(self, folder="~/Papers2"):
         db = os.path.abspath(os.path.expanduser(os.path.join(
             folder, "Library.papers2", "Database.papersdb")))
-        self.engine = create_engine("sqlite:///{0}".format(os.path.abspath(db)))
+        self.engine = create_engine(f"sqlite:///{os.path.abspath(db)}")
         self.folder = folder
         self.schema = automap_base()
         self.schema.prepare(self.engine, reflect=True)
@@ -104,7 +104,7 @@ class Papers2(object):
         return self.schema.classes.get(name)
     
     # Get all publications matching specified criteria.
-    def get_publications(self, row_ids=None, types=None, 
+    def get_publications(self, row_ids=None, author=None, types=None,
             include_deleted=False, include_duplicates=True, include_manuscripts=False):
         Publication = self.get_table("Publication")
         #criteria = [   #this would exclude anything that hasn't been cited...useful to record, perhaps--we'll add a tag?
@@ -121,6 +121,9 @@ class Papers2(object):
         
         if row_ids is not None:
             criteria.append(Publication.ROWID.in_(row_ids))
+
+        if author is not None:
+            criteria.append(Publication.full_author_string.icontains(author))
         
         if types is not None:
             types = list(t.id for t in types)
